@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>運行情報 - 全国路線一覧</title>
+  <style>
+    body {
+      font-family: "Noto Sans JP", sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #004bb1;
+      color: #fff;
+      text-align: center;
+      padding: 16px;
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f0f0f0;
+      text-align: left;
+    }
+    .status-normal {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+    .status-delay {
+      color: #f57c00;
+      font-weight: bold;
+    }
+    .status-suspend {
+      color: #d32f2f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>🚋 全国運行情報</header>
+  <div class="container">
+    <table id="trainTable">
+      <thead>
+        <tr>
+          <th>路線名</th>
+          <th>状態</th>
+          <th>理由</th>
+          <th>遅延回数</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SHEET_ID = "1mFFjKkTVNLA-B5iscGraZdXtS3uHd3KzMAUajbMO_88"; // 👈 あなたのシートID
+    const API_KEY = "AIzaSyCA4h_WbBmMvV2yX--68K2gLf9_rCbgd5E"; // 👈 あなたのAPIキー
+    const SHEET_NAME = "テストシート"; // 👈 シート名
+
+    async function fetchTrainInfo() {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const rows = data.values;
+      const tbody = document.querySelector("#trainTable tbody");
+      tbody.innerHTML = "";
+
+      if (!rows || rows.length < 2) {
+        tbody.innerHTML = "<tr><td colspan='4'>データがありません</td></tr>";
+        return;
+      }
+
+      const dataRows = rows.slice(1); // ヘッダー除外
+
+      for (const row of dataRows) {
+        const [line, status, reason, delay] = row;
+        let statusClass = "";
+        if (status?.includes("見合わせ")) statusClass = "status-suspend";
+        else if (status?.includes("遅延")) statusClass = "status-delay";
+        else statusClass = "status-normal";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${line || ""}</td>
+          <td class="${statusClass}">${status || ""}</td>
+          <td>${reason || ""}</td>
+          <td>${delay || "0"}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    fetchTrainInfo();
+    setInterval(fetchTrainInfo, 300000); // 5分ごと更新
+  </script>
+</body>
+</html>
