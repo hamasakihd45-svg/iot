@@ -92,9 +92,9 @@
       for (const row of dataRows) {
         const [line, status, reason, delay] = row;
         let statusClass = "";
-        if (status?.includes("見合わせ")) statusClass = "status-suspend";
+        if (status?.includes("平常運転")) statusClass = "status-normal";
         else if (status?.includes("遅延")) statusClass = "status-delay";
-        else statusClass = "status-normal";
+        else statusClass = "status-suspend";
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -112,3 +112,4 @@
   </script>
 </body>
 </html>
+
