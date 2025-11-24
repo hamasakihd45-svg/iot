@@ -19,17 +19,41 @@
       font-size: 1.4em;
       font-weight: bold;
     }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      background: #fff;
+      border-bottom: 2px solid #004bb1;
+      margin: 20px auto 0 auto;
+      max-width: 900px;
+      border-radius: 10px 10px 0 0;
+      overflow: hidden;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      cursor: pointer;
+      background: #e0e0e0;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .tab.active {
+      background: #004bb1;
+      color: #fff;
+    }
     .container {
       max-width: 900px;
-      margin: 20px auto;
+      margin: 0 auto 40px auto;
       background: white;
-      border-radius: 10px;
+      border-radius: 0 0 10px 10px;
       padding: 20px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 10px;
     }
     th, td {
       padding: 12px;
@@ -56,60 +80,121 @@
 <body>
   <header>
     <img src="train.png" alt="maniアイコン" style="height: 50px; vertical-align: middle; margin-right: 8px;">
-     全国運行情報
+    全国運行情報
   </header>
-  <link rel="icon" href="favicon.ico">
-  <link rel="apple-touch-icon" href="icon.png">
-  <div class="container">
-    <table id="trainTable">
-      <thead>
-        <tr>
-          <th>路線名</th>
-          <th>状態</th>
-          <th>理由</th>
-          <th>遅延回数</th>
-          <th>運転再開予定</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+
+  <div class="tabs" id="regionTabs"></div>
+  <div class="container" id="trainContainer"></div>
 
   <script>
-    const SHEET_ID = "1mFFjKkTVNLA-B5iscGraZdXtS3uHd3KzMAUajbMO_88"; // 👈 あなたのシートID
-    const API_KEY = "AIzaSyCA4h_WbBmMvV2yX--68K2gLf9_rCbgd5E"; // 👈 あなたのAPIキー
-    const SHEET_NAME = "テストシート"; // 👈 シート名
+    const SHEET_ID = "1mFFjKkTVNLA-B5iscGraZdXtS3uHd3KzMAUajbMO_88";
+    const API_KEY = "AIzaSyCA4h_WbBmMvV2yX--68K2gLf9_rCbgd5E";
+    const SHEET_NAME = "テストシート";
+
+    const regions = {
+      "新幹線": ["東北新幹線","北海道新幹線","北陸新幹線","東海道新幹線","山陽新幹線","九州新幹線","上越新幹線","山形新幹線","秋田新幹線"],
+      "北海道": ["函館本線","室蘭本線","千歳線","札沼線","学園都市線","札幌市営東西線","札幌市営南北線","札幌市営東豊線"],
+      "東北": ["奥羽本線","東北本線","羽越本線","仙山線","仙石線","仙台市営南北線"],
+      "関東": ["山手線","中央線","総武線","京浜東北線","常磐線","東海道本線（東京）","京浜東北根岸線","湘南新宿ライン","横須賀線","横浜線"],
+      "北陸": ["北陸本線","信越本線","七尾線"],
+      "東海": ["東海道本線","中央本線","関西本線（東海）"],
+      "関西": ["JR宝塚線","琵琶湖線","JRゆめ咲線","湖西線","嵯峨野線","学研都市線","JR東西線","大和路線", "大阪メトロ谷町線", "大阪メトロ今里筋線", "大阪モノレール線", "京阪本線・中之島線"],
+      "中国": ["山陽本線（中国）","呉線","伯備線"],
+      "四国": ["予讃線","土讃線","高徳線","徳島線"],
+      "九州": ["鹿児島本線","日豊本線","長崎本線","豊肥本線"]
+    };
+
+    let regionData = {};
 
     async function fetchTrainInfo() {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
       const rows = data.values;
-      const tbody = document.querySelector("#trainTable tbody");
-      tbody.innerHTML = "";
+      const container = document.getElementById("trainContainer");
+      container.innerHTML = "";
 
       if (!rows || rows.length < 2) {
-        tbody.innerHTML = "<tr><td colspan='4'>データがありません</td></tr>";
+        container.innerHTML = "<p>データがありません</p>";
         return;
       }
 
-      const dataRows = rows.slice(1); // ヘッダー除外
+      const dataRows = rows.slice(1);
+
+      // 地域ごとに分類
+      regionData = {};
+      for (const region in regions) regionData[region] = [];
+      regionData["その他"] = [];
 
       for (const row of dataRows) {
         const [line, status, reason, delay] = row;
+        const restart = row[17] || "";
+        let matched = false;
+
+        for (const region in regions) {
+          if (regions[region].some(r => line?.includes(r))) {
+            regionData[region].push({line, status, reason, delay, restart});
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) regionData["その他"].push({line, status, reason, delay, restart});
+      }
+
+      renderTabs();
+      showRegion(Object.keys(regionData)[6]); // 初期表示
+    }
+
+    function renderTabs() {
+      const tabsDiv = document.getElementById("regionTabs");
+      tabsDiv.innerHTML = "";
+
+      for (const region in regionData) {
+        const tab = document.createElement("div");
+        tab.className = "tab";
+        tab.textContent = region;
+        tab.onclick = () => showRegion(region);
+        tabsDiv.appendChild(tab);
+      }
+    }
+
+    function showRegion(region) {
+      const tabs = document.querySelectorAll(".tab");
+      tabs.forEach(tab => tab.classList.remove("active"));
+      Array.from(tabs).find(t => t.textContent === region)?.classList.add("active");
+
+      const container = document.getElementById("trainContainer");
+      container.innerHTML = "";
+
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>路線名</th>
+            <th>状態</th>
+            <th>理由</th>
+            <th>遅延回数</th>
+            <th>運転再開予定</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      container.appendChild(table);
+      const tbody = table.querySelector("tbody");
+
+      for (const row of regionData[region]) {
         let statusClass = "";
-        if (status?.includes("平常運転")) statusClass = "status-normal";
-        else if (status?.includes("遅延")) statusClass = "status-delay";
+        if (row.status?.includes("平常運転")) statusClass = "status-normal";
+        else if (row.status?.includes("遅延")) statusClass = "status-delay";
         else statusClass = "status-suspend";
 
         const tr = document.createElement("tr");
-        const restart = row[17]; // R列 = index 17
         tr.innerHTML = `
-          <td>${line || ""}</td>
-          <td class="${statusClass}">${status || ""}</td>
-          <td>${reason || ""}</td>
-          <td>${delay || "0"}</td>
-          <td>${restart || ""}</td>  <!-- ★ここに表示 -->
+          <td>${row.line || ""}</td>
+          <td class="${statusClass}">${row.status || ""}</td>
+          <td>${row.reason || ""}</td>
+          <td>${row.delay || "0"}</td>
+          <td>${row.restart}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -120,6 +205,3 @@
   </script>
 </body>
 </html>
-
-
-
