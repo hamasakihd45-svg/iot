@@ -68,6 +68,7 @@
           <th>状態</th>
           <th>理由</th>
           <th>遅延回数</th>
+          <th>運転再開予定</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -102,11 +103,13 @@
         else statusClass = "status-suspend";
 
         const tr = document.createElement("tr");
+        const restart = row[17]; // R列 = index 17
         tr.innerHTML = `
           <td>${line || ""}</td>
           <td class="${statusClass}">${status || ""}</td>
           <td>${reason || ""}</td>
           <td>${delay || "0"}</td>
+          <td>${restart || ""}</td>  <!-- ★ここに表示 -->
         `;
         tbody.appendChild(tr);
       }
@@ -117,5 +120,6 @@
   </script>
 </body>
 </html>
+
 
 
